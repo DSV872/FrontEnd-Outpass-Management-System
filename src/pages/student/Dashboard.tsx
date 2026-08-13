@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     Table,
     Button,
@@ -11,15 +11,25 @@ import {
     Card,
     Grid,
 } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import {
+    PlusOutlined,
+    MailOutlined,
+} from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import { QRCodeCanvas } from "qrcode.react";
+
 import api from "../../api/axios";
 import { useAuth } from "../../hooks/useAuth";
+import {
+    outpassService,
+    type ResendEmailResponse,
+    type ResendRecipient,
+} from "../../services/outpassService";
 
 const { Title } = Typography;
 const { useBreakpoint } = Grid;
+
 interface Outpass {
     id: number;
     reason: string;
@@ -32,367 +42,879 @@ interface Outpass {
 }
 
 const StudentDashboard: React.FC = () => {
+
     const [data, setData] = useState<Outpass[]>([]);
     const [loading, setLoading] = useState(false);
+
     const [qrVisible, setQrVisible] = useState(false);
     const [qrToken, setQrToken] = useState<string | null>(null);
 
+    /*
+     * Stores the latest resend information returned by backend.
+     *
+     * Example:
+     *
+     * {
+     *   15: {
+     *      message: "Email sent successfully",
+     *      recipient: "PARENT",
+     *      resendCount: 1,
+     *      remainingAttempts: 2
+     *   }
+     * }
+     */
+    const [resendInfo, setResendInfo] = useState<
+        Record<number, ResendEmailResponse>
+    >({});
+
+    /*
+     * Stores the outpass currently sending an email.
+     */
+    const [resendLoading, setResendLoading] = useState<number | null>(
+        null
+    );
+
     const navigate = useNavigate();
+
     const { user } = useAuth();
+
     const screens = useBreakpoint();
+
     const isMobile = !screens.md;
+
+    /*
+     * ---------------------------------------------------------
+     * FETCH OUTPASSES
+     * ---------------------------------------------------------
+     */
+
     const fetchOutpasses = async () => {
+
         setLoading(true);
+
         try {
-            const res = await api.get("/student/outpasses/all");
+
+            const res = await api.get(
+                "/outpass-service/student/outpasses/all"
+            );
+
             setData(res.data);
-        } catch {
+
+        } catch (error) {
+
+            console.error(
+                "[StudentDashboard] Failed to load outpasses:",
+                error
+            );
+
             message.error("Failed to load outpasses");
+
         } finally {
+
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (user) fetchOutpasses();
+
+        if (user) {
+            fetchOutpasses();
+        }
+
     }, [user]);
 
+    /*
+     * ---------------------------------------------------------
+     * CANCEL OUTPASS
+     * ---------------------------------------------------------
+     */
+
     const handleCancel = async (id: number) => {
+
         try {
-            await api.put(`/student/cancel/${id}`);
+
+            await api.put(
+                `/outpass-service/student/cancel/${id}`
+            );
+
             message.success("Outpass cancelled");
-            fetchOutpasses();
-        } catch {
+
+            await fetchOutpasses();
+
+        } catch (error) {
+
+            console.error(
+                "[StudentDashboard] Cancel failed:",
+                error
+            );
+
             message.error("Cancel failed");
         }
     };
 
+    /*
+     * ---------------------------------------------------------
+     * SHOW QR
+     * ---------------------------------------------------------
+     */
+
     const showQr = async (id: number) => {
+
         try {
-            const res = await api.get(`/student/qr/${id}`);
+
+            const res = await api.get(
+                `/outpass-service/student/qr/${id}`
+            );
 
             if (!res.data?.qrToken) {
+
                 message.warning("No QR Found");
+
                 setQrToken(null);
+
             } else {
+
                 setQrToken(res.data.qrToken);
             }
 
             setQrVisible(true);
-        } catch {
+
+        } catch (error) {
+
+            console.error(
+                "[StudentDashboard] Failed to fetch QR:",
+                error
+            );
+
             message.error("Failed to fetch QR");
         }
     };
 
+    /*
+     * ---------------------------------------------------------
+     * RESEND EMAIL
+     * ---------------------------------------------------------
+     */
+
+    const handleResendEmail = async (
+        outpassId: number,
+        recipient: ResendRecipient
+    ) => {
+
+        try {
+
+            setResendLoading(outpassId);
+
+            const response =
+                await outpassService.resendEmail(
+                    outpassId,
+                    recipient
+                );
+
+            /*
+             * Store the latest backend response.
+             */
+            setResendInfo((previous) => ({
+                ...previous,
+                [outpassId]: response,
+            }));
+
+            /*
+             * Show backend message.
+             */
+            message.success(response.message);
+
+        } catch (error: any) {
+
+            console.error(
+                "[StudentDashboard] Resend email failed:",
+                error
+            );
+
+            /*
+             * Backend error response.
+             *
+             * Example:
+             *
+             * {
+             *     "message": "Maximum resend attempts reached"
+             * }
+             */
+            const errorMessage =
+                error?.response?.data?.message ||
+                "Failed to resend email";
+
+            message.error(errorMessage);
+
+        } finally {
+
+            setResendLoading(null);
+        }
+    };
+
+    /*
+     * ---------------------------------------------------------
+     * RESEND INFORMATION
+     * ---------------------------------------------------------
+     *
+     * We don't assume the backend count until the first resend
+     * response is received.
+     *
+     * Before that:
+     *     3 attempts are available.
+     *
+     * After backend responds:
+     *     use backend's remainingAttempts.
+     */
+
+    const getRemainingAttempts = (outpassId: number): number => {
+
+        const info = resendInfo[outpassId];
+
+        if (!info) {
+            return 3;
+        }
+
+        return Math.max(
+            0,
+            info.remainingAttempts
+        );
+    };
+
+    /*
+     * ---------------------------------------------------------
+     * STATUS
+     * ---------------------------------------------------------
+     */
+
     const today = dayjs().format("YYYY-MM-DD");
 
-    // Active outing/outpass
     const activeOutpasses = useMemo(() => {
-        
+
         return data.filter((item) => {
-            const outDate = dayjs(item.outTime).format("YYYY-MM-DD");
+
+            const outDate =
+                dayjs(item.outTime).format("YYYY-MM-DD");
+
             return (
                 outDate === today &&
-                ["PENDING", "PARENT_APPROVED", "WARDEN_APPROVED", "OUT"].includes(
-                    item.status
-                )
+                [
+                    "PENDING",
+                    "PARENT_APPROVED",
+                    "WARDEN_APPROVED",
+                    "OUT",
+                ].includes(item.status)
             );
         });
+
+    }, [data, today]);
+
+    const historyOutpasses = useMemo(() => {
+
+        return data;
+
     }, [data]);
 
-    // History
-   const historyOutpasses = useMemo(() => {
-    return data;
-}, [data]);
-
-    const isApplyDisabled = activeOutpasses.length > 0;
+    const isApplyDisabled =
+        activeOutpasses.length > 0;
 
     const getStatusColor = (status: string) => {
+
         switch (status) {
+
             case "WARDEN_APPROVED":
                 return "green";
+
             case "PARENT_APPROVED":
                 return "cyan";
+
             case "OUT":
                 return "orange";
+
             case "IN":
                 return "blue";
+
             case "REJECTED":
             case "CANCELLED":
                 return "red";
+
             case "PENDING":
                 return "gold";
+
             default:
                 return "default";
         }
     };
+
+    /*
+     * ---------------------------------------------------------
+     * TABLE COLUMNS
+     * ---------------------------------------------------------
+     */
 
     const columns = [
         {
             title: "Type",
             dataIndex: "outpassType",
         },
+
         {
             title: "Reason",
             dataIndex: "reason",
         },
+
         {
             title: "Destination",
             dataIndex: "destination",
         },
+
         {
             title: "Out Time",
             dataIndex: "outTime",
+
             render: (text: string) =>
-                dayjs(text).format("DD MMM YYYY HH:mm"),
+                dayjs(text).format(
+                    "DD MMM YYYY HH:mm"
+                ),
         },
+
         {
             title: "Expected In Time",
             dataIndex: "expectedInTime",
+
             render: (text: string) =>
-                dayjs(text).format("DD MMM YYYY HH:mm"),
+                dayjs(text).format(
+                    "DD MMM YYYY HH:mm"
+                ),
         },
+
         {
             title: "Actual In Time",
             dataIndex: "actualInTime",
+
             render: (text: string | null) =>
                 text
-                    ? dayjs(text).format("DD MMM YYYY HH:mm")
+                    ? dayjs(text).format(
+                        "DD MMM YYYY HH:mm"
+                    )
                     : "Not Returned",
         },
+
         {
             title: "Status",
             dataIndex: "status",
+
             render: (status: string) => (
-                <Tag color={getStatusColor(status)}>{status}</Tag>
+
+                <Tag
+                    color={getStatusColor(status)}
+                >
+                    {status}
+                </Tag>
             ),
         },
     ];
 
+    /*
+     * ---------------------------------------------------------
+     * RESEND BUTTONS
+     * ---------------------------------------------------------
+     */
+
+    const ResendButtons = ({
+        outpassId,
+    }: {
+        outpassId: number;
+    }) => {
+
+        const remainingAttempts =
+            getRemainingAttempts(outpassId);
+
+        const noAttemptsLeft =
+            remainingAttempts <= 0;
+
+        return (
+
+            <Space wrap>
+
+                <Popconfirm
+                    title="Resend email to parent?"
+                    description={
+                        noAttemptsLeft
+                            ? "No resend attempts remaining."
+                            : `${remainingAttempts} resend attempt${
+                                remainingAttempts === 1
+                                    ? ""
+                                    : "s"
+                            } remaining.`
+                    }
+                    okText="Resend"
+                    cancelText="Cancel"
+                    disabled={noAttemptsLeft}
+                    onConfirm={() =>
+                        handleResendEmail(
+                            outpassId,
+                            "PARENT"
+                        )
+                    }
+                >
+
+                    <Button
+                        icon={<MailOutlined />}
+                        disabled={noAttemptsLeft}
+                        loading={
+                            resendLoading === outpassId
+                        }
+                    >
+                        Resend Parent
+                    </Button>
+
+                </Popconfirm>
+
+                <Popconfirm
+                    title="Resend email to warden?"
+                    description={
+                        noAttemptsLeft
+                            ? "No resend attempts remaining."
+                            : `${remainingAttempts} resend attempt${
+                                remainingAttempts === 1
+                                    ? ""
+                                    : "s"
+                            } remaining.`
+                    }
+                    okText="Resend"
+                    cancelText="Cancel"
+                    disabled={noAttemptsLeft}
+                    onConfirm={() =>
+                        handleResendEmail(
+                            outpassId,
+                            "WARDEN"
+                        )
+                    }
+                >
+
+                    <Button
+                        icon={<MailOutlined />}
+                        disabled={noAttemptsLeft}
+                        loading={
+                            resendLoading === outpassId
+                        }
+                    >
+                        Resend Warden
+                    </Button>
+
+                </Popconfirm>
+
+                <Tag
+                    color={
+                        noAttemptsLeft
+                            ? "red"
+                            : "blue"
+                    }
+                >
+                    {remainingAttempts}{" "}
+                    {remainingAttempts === 1
+                        ? "attempt"
+                        : "attempts"}{" "}
+                    left
+                </Tag>
+
+            </Space>
+        );
+    };
+
+    /*
+     * ---------------------------------------------------------
+     * ACTIVE TABLE COLUMNS
+     * ---------------------------------------------------------
+     */
+
     const activeColumns = [
+
         ...columns,
+
         {
             title: "Action",
-            render: (_: any, record: Outpass) => (
-                <Space>
+
+            render: (
+                _: any,
+                record: Outpass
+            ) => (
+
+                <Space wrap>
+
                     {record.status === "PENDING" && (
+
                         <Popconfirm
                             title="Cancel this request?"
-                            onConfirm={() => handleCancel(record.id)}
+                            onConfirm={() =>
+                                handleCancel(
+                                    record.id
+                                )
+                            }
                         >
+
                             <Button danger type="link">
                                 Cancel
                             </Button>
+
                         </Popconfirm>
                     )}
 
                     {(record.status === "WARDEN_APPROVED" ||
                         record.status === "OUT") && (
-                            <Button type="link" onClick={() => showQr(record.id)}>
-                                Show QR
-                            </Button>
-                        )}
+
+                        <Button
+                            type="link"
+                            onClick={() =>
+                                showQr(record.id)
+                            }
+                        >
+                            Show QR
+                        </Button>
+                    )}
+
+                    <ResendButtons
+                        outpassId={record.id}
+                    />
+
                 </Space>
             ),
         },
     ];
-    const OutpassCard = ({ item }: { item: Outpass }) => (
-        
-        <Card
-            hoverable
-            size="small"
-            style={{
-                marginBottom: 16,
-                borderRadius: 12,
-                boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
-            }}
-        >
-            <Space
-                direction="vertical"
-                style={{ width: "100%" }}
+
+    /*
+     * ---------------------------------------------------------
+     * MOBILE OUTPASS CARD
+     * ---------------------------------------------------------
+     */
+
+    const OutpassCard = ({
+        item,
+    }: {
+        item: Outpass;
+    }) => {
+
+        return (
+
+            <Card
+                hoverable
+                size="small"
+                style={{
+                    marginBottom: 16,
+                    borderRadius: 12,
+                    boxShadow:
+                        "0 2px 8px rgba(0,0,0,0.08)",
+                }}
             >
-                <div
+
+                <Space
+                    direction="vertical"
                     style={{
-                        display: "flex",
-                        justifyContent: "space-between",
+                        width: "100%",
                     }}
                 >
-                    <strong>{item.outpassType}</strong>
 
-                    <Tag
-                        color={getStatusColor(item.status)}
+                    <div
                         style={{
-                            fontWeight: 600,
-                            paddingInline: 10
+                            display: "flex",
+                            justifyContent:
+                                "space-between",
                         }}
                     >
-                        {item.status}
-                    </Tag>
-                </div>
 
-                <div>
-                    <strong>Reason</strong>
-                    <br />
-                    {item.reason}
-                </div>
+                        <strong>
+                            {item.outpassType}
+                        </strong>
 
-                <div>
-                    <strong>Destination</strong>
-                    <br />
-                    {item.destination}
-                </div>
-
-                <div>
-                    <strong>Out Time</strong>
-                    <br />
-                    {dayjs(item.outTime).format(
-                        "DD MMM YYYY HH:mm"
-                    )}
-                </div>
-
-                <div>
-                    <strong>Expected In</strong>
-                    <br />
-                    {dayjs(item.expectedInTime).format(
-                        "DD MMM YYYY HH:mm"
-                    )}
-                </div>
-
-                <div>
-                    <strong>Actual In</strong>
-                    <br />
-                    {item.actualInTime
-                        ? dayjs(item.actualInTime).format(
-                            "DD MMM YYYY HH:mm"
-                        )
-                        : "Not Returned"}
-                </div>
-
-                <Space>
-                    {item.status === "PENDING" && (
-                        <Popconfirm
-                            title="Cancel this request?"
-                            onConfirm={() =>
-                                handleCancel(item.id)
-                            }
+                        <Tag
+                            color={getStatusColor(
+                                item.status
+                            )}
+                            style={{
+                                fontWeight: 600,
+                                paddingInline: 10,
+                            }}
                         >
-                            <Button danger>
-                                Cancel
-                            </Button>
-                        </Popconfirm>
-                    )}
+                            {item.status}
+                        </Tag>
 
-                    {(item.status ===
-                        "WARDEN_APPROVED" ||
-                        item.status === "OUT") && (
+                    </div>
+
+                    <div>
+                        <strong>Reason</strong>
+                        <br />
+                        {item.reason}
+                    </div>
+
+                    <div>
+                        <strong>Destination</strong>
+                        <br />
+                        {item.destination}
+                    </div>
+
+                    <div>
+                        <strong>Out Time</strong>
+                        <br />
+
+                        {dayjs(
+                            item.outTime
+                        ).format(
+                            "DD MMM YYYY HH:mm"
+                        )}
+                    </div>
+
+                    <div>
+                        <strong>Expected In</strong>
+                        <br />
+
+                        {dayjs(
+                            item.expectedInTime
+                        ).format(
+                            "DD MMM YYYY HH:mm"
+                        )}
+                    </div>
+
+                    <div>
+                        <strong>Actual In</strong>
+                        <br />
+
+                        {item.actualInTime
+                            ? dayjs(
+                                item.actualInTime
+                            ).format(
+                                "DD MMM YYYY HH:mm"
+                            )
+                            : "Not Returned"}
+                    </div>
+
+                    <Space wrap>
+
+                        {item.status === "PENDING" && (
+
+                            <Popconfirm
+                                title="Cancel this request?"
+                                onConfirm={() =>
+                                    handleCancel(
+                                        item.id
+                                    )
+                                }
+                            >
+
+                                <Button danger>
+                                    Cancel
+                                </Button>
+
+                            </Popconfirm>
+                        )}
+
+                        {(item.status ===
+                            "WARDEN_APPROVED" ||
+                            item.status === "OUT") && (
+
                             <Button
                                 type="primary"
                                 onClick={() =>
-                                    showQr(item.id)
+                                    showQr(
+                                        item.id
+                                    )
                                 }
                             >
                                 Show QR
                             </Button>
                         )}
+
+                        <ResendButtons
+                            outpassId={item.id}
+                        />
+
+                    </Space>
+
                 </Space>
-            </Space>
-        </Card>
-    );
+
+            </Card>
+        );
+    };
+
+    /*
+     * ---------------------------------------------------------
+     * RENDER
+     * ---------------------------------------------------------
+     */
+
     return (
-        <div style={{ padding: 24 }}>
+
+        <div
+            style={{
+                padding: 24,
+            }}
+        >
+
+            {/* HEADER */}
+
             <Space
-                direction={isMobile ? "vertical" : "horizontal"}
+                direction={
+                    isMobile
+                        ? "vertical"
+                        : "horizontal"
+                }
                 style={{
                     width: "100%",
-                    justifyContent: "space-between",
+                    justifyContent:
+                        "space-between",
                     marginBottom: 20,
                 }}
             >
-                <Title level={2}>My Outpasses</Title>
+
+                <Title level={2}>
+                    My Outpasses
+                </Title>
 
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}
                     block={isMobile}
                     disabled={isApplyDisabled}
-                    onClick={() => navigate("/student/apply")}
+                    onClick={() =>
+                        navigate(
+                            "/student/apply"
+                        )
+                    }
                 >
                     Apply Outpass / Outing
                 </Button>
+
             </Space>
 
-            {/* Active Section */}
+            {/* ACTIVE OUTPASS */}
+
             <Card
                 title="Active Outing / Outpass"
-                style={{ marginBottom: 20 }}
+                style={{
+                    marginBottom: 20,
+                }}
             >
+
                 {activeOutpasses.length === 0 ? (
+
                     <Typography.Text type="secondary">
                         No active outing/outpass.
                     </Typography.Text>
+
                 ) : isMobile ? (
-                    activeOutpasses.map((item) => (
-                        <OutpassCard
-                            key={item.id}
-                            item={item}
-                        />
-                    ))
+
+                    activeOutpasses.map(
+                        (item) => (
+
+                            <OutpassCard
+                                key={item.id}
+                                item={item}
+                            />
+
+                        )
+                    )
+
                 ) : (
+
                     <Table
                         columns={activeColumns}
-                        dataSource={activeOutpasses}
+                        dataSource={
+                            activeOutpasses
+                        }
                         rowKey="id"
                         pagination={false}
                     />
+
                 )}
+
             </Card>
 
-            {/* History Section */}
+            {/* HISTORY */}
+
             <Card title="Outpass History">
+
                 {historyOutpasses.length === 0 ? (
+
                     <Typography.Text type="secondary">
                         No history found.
                     </Typography.Text>
+
                 ) : isMobile ? (
-                    historyOutpasses.map((item) => (
-                        <OutpassCard
-                            key={item.id}
-                            item={item}
-                        />
-                    ))
+
+                    historyOutpasses.map(
+                        (item) => (
+
+                            <OutpassCard
+                                key={item.id}
+                                item={item}
+                            />
+
+                        )
+                    )
+
                 ) : (
+
                     <Table
                         columns={columns}
-                        dataSource={historyOutpasses}
+                        dataSource={
+                            historyOutpasses
+                        }
                         rowKey="id"
                         loading={loading}
                         pagination={{
                             pageSize: 5,
                         }}
                     />
+
                 )}
+
             </Card>
 
-            {/* QR Modal */}
+            {/* QR MODAL */}
+
             <Modal
                 title="Gate QR"
                 open={qrVisible}
                 footer={null}
-                onCancel={() => setQrVisible(false)}
+                onCancel={() =>
+                    setQrVisible(false)
+                }
             >
-                <div style={{ textAlign: "center" }}>
+
+                <div
+                    style={{
+                        textAlign: "center",
+                    }}
+                >
+
                     {qrToken ? (
+
                         <>
-                            <QRCodeCanvas value={qrToken} size={220} />
-                            <p style={{ marginTop: 10 }}>
-                                Show this QR at the hostel gate
+                            <QRCodeCanvas
+                                value={qrToken}
+                                size={220}
+                            />
+
+                            <p
+                                style={{
+                                    marginTop: 10,
+                                }}
+                            >
+                                Show this QR at the hostel
+                                gate
                             </p>
                         </>
+
                     ) : (
+
                         <p>No QR Found</p>
+
                     )}
+
                 </div>
+
             </Modal>
+
         </div>
     );
 };

@@ -39,7 +39,7 @@ const ApplyOutpass: React.FC = () => {
                 parentEmail: values.parentEmail,
             };
 
-            await api.post("/student/apply", payload);
+            await api.post("/outpass-service/student/apply", payload);
 
             message.success("Outpass applied successfully");
 

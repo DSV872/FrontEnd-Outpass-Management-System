@@ -22,7 +22,7 @@ const Login: React.FC = () => {
         setLoading(true);
         try {
             console.log("[Login] Sending authentication request...");
-            const response = await authApi.post('/auth/login', values);
+            const response = await authApi.post('/auth-service/auth/login', values);
             console.log(response)
             const { token } = response.data;
 
