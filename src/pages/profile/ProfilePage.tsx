@@ -299,7 +299,7 @@ const ProfilePage: React.FC = () => {
 
                     {/* Timestamps */}
                     <Card bordered={false} style={{ borderRadius: 20 }}>
-                        <Divider orientation="left" style={{ marginTop: 0 }}>Account Timeline</Divider>
+                        <Divider style={{ marginTop: 0 }}>Account Timeline</Divider>
                         <Row gutter={[16, 16]}>
                             <Col xs={24} sm={12}>
                                 <InfoTile isDark={isDark} icon={<CalendarOutlined />} label="Profile Created"
