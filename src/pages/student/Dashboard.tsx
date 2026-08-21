@@ -37,7 +37,7 @@ interface Outpass {
     status: string;
     outTime: string;
     expectedInTime: string;
-    actualInTime: string | null;
+    inTime: string | null;
     destination: string;
 }
 
@@ -48,28 +48,9 @@ const StudentDashboard: React.FC = () => {
 
     const [qrVisible, setQrVisible] = useState(false);
     const [qrToken, setQrToken] = useState<string | null>(null);
-
-    /*
-     * Stores the latest resend information returned by backend.
-     *
-     * Example:
-     *
-     * {
-     *   15: {
-     *      message: "Email sent successfully",
-     *      recipient: "PARENT",
-     *      resendCount: 1,
-     *      remainingAttempts: 2
-     *   }
-     * }
-     */
     const [resendInfo, setResendInfo] = useState<
         Record<number, ResendEmailResponse>
     >({});
-
-    /*
-     * Stores the outpass currently sending an email.
-     */
     const [resendLoading, setResendLoading] = useState<number | null>(
         null
     );
@@ -83,9 +64,7 @@ const StudentDashboard: React.FC = () => {
     const isMobile = !screens.md;
 
     /*
-     * ---------------------------------------------------------
      * FETCH OUTPASSES
-     * ---------------------------------------------------------
      */
 
     const fetchOutpasses = async () => {
@@ -124,9 +103,7 @@ const StudentDashboard: React.FC = () => {
     }, [user]);
 
     /*
-     * ---------------------------------------------------------
      * CANCEL OUTPASS
-     * ---------------------------------------------------------
      */
 
     const handleCancel = async (id: number) => {
@@ -153,9 +130,7 @@ const StudentDashboard: React.FC = () => {
     };
 
     /*
-     * ---------------------------------------------------------
      * SHOW QR
-     * ---------------------------------------------------------
      */
 
     const showQr = async (id: number) => {
@@ -191,9 +166,7 @@ const StudentDashboard: React.FC = () => {
     };
 
     /*
-     * ---------------------------------------------------------
      * RESEND EMAIL
-     * ---------------------------------------------------------
      */
 
     const handleResendEmail = async (
@@ -211,17 +184,10 @@ const StudentDashboard: React.FC = () => {
                     recipient
                 );
 
-            /*
-             * Store the latest backend response.
-             */
             setResendInfo((previous) => ({
                 ...previous,
                 [outpassId]: response,
             }));
-
-            /*
-             * Show backend message.
-             */
             message.success(response.message);
 
         } catch (error: any) {
@@ -231,15 +197,6 @@ const StudentDashboard: React.FC = () => {
                 error
             );
 
-            /*
-             * Backend error response.
-             *
-             * Example:
-             *
-             * {
-             *     "message": "Maximum resend attempts reached"
-             * }
-             */
             const errorMessage =
                 error?.response?.data?.message ||
                 "Failed to resend email";
@@ -251,22 +208,6 @@ const StudentDashboard: React.FC = () => {
             setResendLoading(null);
         }
     };
-
-    /*
-     * ---------------------------------------------------------
-     * RESEND INFORMATION
-     * ---------------------------------------------------------
-     *
-     * We don't assume the backend count until the first resend
-     * response is received.
-     *
-     * Before that:
-     *     3 attempts are available.
-     *
-     * After backend responds:
-     *     use backend's remainingAttempts.
-     */
-
     const getRemainingAttempts = (outpassId: number): number => {
 
         const info = resendInfo[outpassId];
@@ -390,7 +331,7 @@ const StudentDashboard: React.FC = () => {
 
         {
             title: "Actual In Time",
-            dataIndex: "actualInTime",
+            dataIndex: "actualI nTime",
 
             render: (text: string | null) =>
                 text
@@ -422,102 +363,99 @@ const StudentDashboard: React.FC = () => {
      */
 
     const ResendButtons = ({
-        outpassId,
+        outpass,
     }: {
-        outpassId: number;
+        outpass: Outpass;
     }) => {
+
+        const outpassId = outpass.id;
 
         const remainingAttempts =
             getRemainingAttempts(outpassId);
 
         const noAttemptsLeft =
             remainingAttempts <= 0;
-
         return (
 
             <Space wrap>
 
-                <Popconfirm
-                    title="Resend email to parent?"
-                    description={
-                        noAttemptsLeft
-                            ? "No resend attempts remaining."
-                            : `${remainingAttempts} resend attempt${
-                                remainingAttempts === 1
-                                    ? ""
-                                    : "s"
-                            } remaining.`
-                    }
-                    okText="Resend"
-                    cancelText="Cancel"
-                    disabled={noAttemptsLeft}
-                    onConfirm={() =>
-                        handleResendEmail(
-                            outpassId,
-                            "PARENT"
-                        )
-                    }
-                >
-
-                    <Button
-                        icon={<MailOutlined />}
+                {/* Parent resend - ONLY when PENDING */}
+                {outpass.status === "PENDING" && (
+                    <Popconfirm
+                        title="Resend email to parent?"
+                        description={
+                            noAttemptsLeft
+                                ? "No resend attempts remaining."
+                                : `${remainingAttempts} resend attempt${remainingAttempts === 1 ? "" : "s"
+                                } remaining.`
+                        }
+                        okText="Resend"
+                        cancelText="Cancel"
                         disabled={noAttemptsLeft}
-                        loading={
-                            resendLoading === outpassId
+                        onConfirm={() =>
+                            handleResendEmail(
+                                outpassId,
+                                "PARENT"
+                            )
                         }
                     >
-                        Resend Parent
-                    </Button>
+                        <Button
+                            icon={<MailOutlined />}
+                            disabled={noAttemptsLeft}
+                            loading={resendLoading === outpassId}
+                        >
+                            Resend Parent
+                        </Button>
+                    </Popconfirm>
+                )}
 
-                </Popconfirm>
-
-                <Popconfirm
-                    title="Resend email to warden?"
-                    description={
-                        noAttemptsLeft
-                            ? "No resend attempts remaining."
-                            : `${remainingAttempts} resend attempt${
-                                remainingAttempts === 1
-                                    ? ""
-                                    : "s"
-                            } remaining.`
-                    }
-                    okText="Resend"
-                    cancelText="Cancel"
-                    disabled={noAttemptsLeft}
-                    onConfirm={() =>
-                        handleResendEmail(
-                            outpassId,
-                            "WARDEN"
-                        )
-                    }
-                >
-
-                    <Button
-                        icon={<MailOutlined />}
+                {/* Warden resend - ONLY when PARENT_APPROVED */}
+                {outpass.status === "PARENT_APPROVED" && (
+                    <Popconfirm
+                        title="Resend email to warden?"
+                        description={
+                            noAttemptsLeft
+                                ? "No resend attempts remaining."
+                                : `${remainingAttempts} resend attempt${remainingAttempts === 1 ? "" : "s"
+                                } remaining.`
+                        }
+                        okText="Resend"
+                        cancelText="Cancel"
                         disabled={noAttemptsLeft}
-                        loading={
-                            resendLoading === outpassId
+                        onConfirm={() =>
+                            handleResendEmail(
+                                outpassId,
+                                "WARDEN"
+                            )
                         }
                     >
-                        Resend Warden
-                    </Button>
+                        <Button
+                            icon={<MailOutlined />}
+                            disabled={noAttemptsLeft}
+                            loading={resendLoading === outpassId}
+                        >
+                            Resend Warden
+                        </Button>
+                    </Popconfirm>
+                )}
 
-                </Popconfirm>
-
-                <Tag
-                    color={
-                        noAttemptsLeft
-                            ? "red"
-                            : "blue"
-                    }
-                >
-                    {remainingAttempts}{" "}
-                    {remainingAttempts === 1
-                        ? "attempt"
-                        : "attempts"}{" "}
-                    left
-                </Tag>
+                {/* Show resend count only when a resend is actually applicable */}
+                {(outpass.status === "PENDING" ||
+                    outpass.status === "PARENT_APPROVED") && (
+                        <Tag
+                            color={
+                                noAttemptsLeft
+                                    ? "red"
+                                    : "blue"
+                            }
+                        >
+                            {remainingAttempts}{" "}
+                            {remainingAttempts === 1
+                                ? "attempt"
+                                : "attempts"}{" "}
+                            left
+                        </Tag>
+                    )}
 
             </Space>
         );
@@ -544,38 +482,32 @@ const StudentDashboard: React.FC = () => {
                 <Space wrap>
 
                     {record.status === "PENDING" && (
-
                         <Popconfirm
                             title="Cancel this request?"
                             onConfirm={() =>
-                                handleCancel(
-                                    record.id
-                                )
+                                handleCancel(record.id)
                             }
                         >
-
                             <Button danger type="link">
                                 Cancel
                             </Button>
-
                         </Popconfirm>
                     )}
 
                     {(record.status === "WARDEN_APPROVED" ||
                         record.status === "OUT") && (
-
-                        <Button
-                            type="link"
-                            onClick={() =>
-                                showQr(record.id)
-                            }
-                        >
-                            Show QR
-                        </Button>
-                    )}
+                            <Button
+                                type="link"
+                                onClick={() =>
+                                    showQr(record.id)
+                                }
+                            >
+                                Show QR
+                            </Button>
+                        )}
 
                     <ResendButtons
-                        outpassId={record.id}
+                        outpass={record}
                     />
 
                 </Space>
@@ -679,9 +611,9 @@ const StudentDashboard: React.FC = () => {
                         <strong>Actual In</strong>
                         <br />
 
-                        {item.actualInTime
+                        {item.inTime
                             ? dayjs(
-                                item.actualInTime
+                                item.inTime
                             ).format(
                                 "DD MMM YYYY HH:mm"
                             )
@@ -691,41 +623,32 @@ const StudentDashboard: React.FC = () => {
                     <Space wrap>
 
                         {item.status === "PENDING" && (
-
                             <Popconfirm
                                 title="Cancel this request?"
                                 onConfirm={() =>
-                                    handleCancel(
-                                        item.id
-                                    )
+                                    handleCancel(item.id)
                                 }
                             >
-
                                 <Button danger>
                                     Cancel
                                 </Button>
-
                             </Popconfirm>
                         )}
 
-                        {(item.status ===
-                            "WARDEN_APPROVED" ||
+                        {(item.status === "WARDEN_APPROVED" ||
                             item.status === "OUT") && (
-
-                            <Button
-                                type="primary"
-                                onClick={() =>
-                                    showQr(
-                                        item.id
-                                    )
-                                }
-                            >
-                                Show QR
-                            </Button>
-                        )}
+                                <Button
+                                    type="primary"
+                                    onClick={() =>
+                                        showQr(item.id)
+                                    }
+                                >
+                                    Show QR
+                                </Button>
+                            )}
 
                         <ResendButtons
-                            outpassId={item.id}
+                            outpass={item}
                         />
 
                     </Space>

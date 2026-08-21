@@ -35,7 +35,7 @@ const SecurityDashboard: React.FC = () => {
   const isMobile = !screens.md;
   const fetchHistory = async () => {
     try {
-      const response = await api.get('/security/history');
+      const response = await api.get('/outpass-service/security/history');
       setHistory(response.data);
     } catch (error) {
       console.error(error);
@@ -56,7 +56,7 @@ const SecurityDashboard: React.FC = () => {
     setLoading(true);
 
     try {
-      await api.put(`/security/scan-${type}/${tokenInput}`);
+      await api.put(`/outpass-service/security/scan-${type}/${tokenInput}`);
 
       message.success(
         `Student scanned ${type.toUpperCase()} successfully`

@@ -45,7 +45,7 @@ const WardenDashboard: React.FC = () => {
     const isMobile = !screens.md;
     const fetchPending = async () => {
         try {
-            const response = await api.get('/warden/pending');
+            const response = await api.get('/outpass-service/warden/pending');
             setPendingData(response.data);
         } catch (error: any) {
             console.error(error.response?.data);
@@ -59,7 +59,7 @@ const WardenDashboard: React.FC = () => {
 
     const fetchHistory = async () => {
         try {
-            const response = await api.get('/warden/history');
+            const response = await api.get('/outpass-service/warden/history');
             setHistoryData(response.data);
         } catch (error: any) {
             console.error(error.response?.data);
@@ -90,9 +90,9 @@ const WardenDashboard: React.FC = () => {
         try {
 
             if (action === "approve") {
-                await api.put(`/warden/approve/${id}`);
+                await api.put(`/outpass-service/warden/approve/${id}`);
             } else {
-                await api.put(`/warden/reject/${id}`);
+                await api.put(`/outpass-service/warden/reject/${id}`);
             }
 
             message.success(

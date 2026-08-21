@@ -131,3 +131,198 @@ body .ant-layout-header .ant-typography {
     transform: translateY(0);
   }
 }
+
+/* =========================================
+   AMOLED Dark Mode
+   ========================================= */
+[data-theme="dark"] body,
+.dark-mode {
+  background: #000000 !important;
+  color: #e8e8e8;
+}
+
+[data-theme="dark"] body {
+  background: #000000 !important;
+}
+
+/* Cards */
+.dark-mode .ant-card,
+[data-theme="dark"] .ant-card {
+  background: #0a0a0a !important;
+  border: 1px solid #1f1f1f !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+}
+
+.dark-mode .ant-card:hover,
+[data-theme="dark"] .ant-card:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Table */
+.dark-mode .ant-table,
+[data-theme="dark"] .ant-table {
+  background: transparent !important;
+}
+
+.dark-mode .ant-table-cell,
+[data-theme="dark"] .ant-table-cell {
+  background: #0a0a0a !important;
+  border-bottom: 1px solid #1a1a1a !important;
+  color: #e8e8e8 !important;
+}
+
+.dark-mode .ant-table-thead .ant-table-cell,
+[data-theme="dark"] .ant-table-thead .ant-table-cell {
+  background: #111111 !important;
+  color: #a0a0a0 !important;
+}
+
+.dark-mode .ant-table-row:hover .ant-table-cell,
+[data-theme="dark"] .ant-table-row:hover .ant-table-cell {
+  background: #161616 !important;
+}
+
+/* Header */
+.dark-mode .ant-layout-header,
+[data-theme="dark"] .ant-layout-header {
+  background: #050505 !important;
+  border-bottom: 1px solid #1a1a1a !important;
+}
+
+.dark-mode .ant-layout-header .ant-typography,
+[data-theme="dark"] .ant-layout-header .ant-typography {
+  color: #e8e8e8 !important;
+}
+
+/* Layout */
+.dark-mode .ant-layout,
+[data-theme="dark"] .ant-layout {
+  background: #000000 !important;
+}
+
+.dark-mode .ant-layout-content,
+[data-theme="dark"] .ant-layout-content {
+  background: #020202 !important;
+}
+
+/* Modal */
+.dark-mode .ant-modal-content,
+[data-theme="dark"] .ant-modal-content {
+  background: #0d0d0d !important;
+  border: 1px solid #1f1f1f !important;
+}
+
+.dark-mode .ant-modal-header,
+[data-theme="dark"] .ant-modal-header {
+  background: #0d0d0d !important;
+  border-bottom: 1px solid #1a1a1a !important;
+}
+
+.dark-mode .ant-modal-title,
+[data-theme="dark"] .ant-modal-title {
+  color: #e8e8e8 !important;
+}
+
+/* Inputs */
+.dark-mode .ant-input,
+.dark-mode .ant-input-password,
+.dark-mode .ant-select-selector,
+[data-theme="dark"] .ant-input,
+[data-theme="dark"] .ant-input-password,
+[data-theme="dark"] .ant-select-selector {
+  background: #111111 !important;
+  border-color: #2a2a2a !important;
+  color: #e8e8e8 !important;
+}
+
+/* Dropdown / Select */
+.dark-mode .ant-select-dropdown,
+[data-theme="dark"] .ant-select-dropdown {
+  background: #111111 !important;
+  border: 1px solid #2a2a2a !important;
+}
+
+.dark-mode .ant-select-item,
+[data-theme="dark"] .ant-select-item {
+  color: #e8e8e8 !important;
+}
+
+.dark-mode .ant-select-item-option-active,
+[data-theme="dark"] .ant-select-item-option-active {
+  background: #1f1f1f !important;
+}
+
+/* Form labels */
+.dark-mode .ant-form-item-label label,
+[data-theme="dark"] .ant-form-item-label label {
+  color: #c0c0c0 !important;
+}
+
+/* Typography */
+.dark-mode .ant-typography,
+[data-theme="dark"] .ant-typography {
+  color: #e8e8e8;
+}
+
+/* Logout confirm modal (static Modal.confirm bypasses ConfigProvider) */
+.logout-modal-dark .ant-modal-content {
+  background: #0d0d0d !important;
+  border: 1px solid #1f1f1f !important;
+  border-radius: 12px !important;
+}
+
+.logout-modal-dark .ant-modal-header {
+  background: #0d0d0d !important;
+  border-bottom: 1px solid #1a1a1a !important;
+}
+
+.logout-modal-dark .ant-modal-title {
+  color: #e8e8e8 !important;
+}
+
+.logout-modal-dark .ant-modal-body,
+.logout-modal-dark .ant-modal-confirm-body .ant-modal-confirm-content {
+  color: #a0a0a0 !important;
+}
+
+.logout-modal-dark .ant-modal-footer,
+.logout-modal-dark .ant-modal-confirm-btns {
+  border-top: 1px solid #1a1a1a !important;
+  background: #0d0d0d !important;
+}
+
+/* =========================================
+   AMOLED Dark Mode — Toast Messages
+   ========================================= */
+[data-theme="dark"] .ant-message .ant-message-notice-content {
+  background: #111111 !important;
+  border: 1px solid #2a2a2a !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7) !important;
+  color: #e8e8e8 !important;
+}
+
+/* Success toast */
+[data-theme="dark"] .ant-message-success .anticon {
+  color: #52c41a !important;
+}
+
+/* Error toast */
+[data-theme="dark"] .ant-message-error .anticon {
+  color: #ff4d4f !important;
+}
+
+/* Warning toast */
+[data-theme="dark"] .ant-message-warning .anticon {
+  color: #faad14 !important;
+}
+
+/* Info toast */
+[data-theme="dark"] .ant-message-info .anticon {
+  color: #1890ff !important;
+}
+
+/* Toast text color */
+[data-theme="dark"] .ant-message .ant-message-notice-content span {
+  color: #e8e8e8 !important;
+}

@@ -70,6 +70,10 @@ api.interceptors.response.use(
         const status = error.response?.status;
 
         if (status === 401 || status === 403) {
+            if (error.config?.headers?.['X-Skip-Auth-Redirect']) {
+                return Promise.reject(error);
+            }
+
             localStorage.removeItem("token");
 
             if (window.location.pathname !== "/login") {
