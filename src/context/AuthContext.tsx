@@ -4,7 +4,7 @@ import { jwtDecode } from 'jwt-decode';
 export interface User {
     id: string;
     email: string;
-    role: 'STUDENT' | 'PARENT' | 'WARDEN' | 'SECURITY';
+    role: 'STUDENT' | 'PARENT' | 'WARDEN' | 'SECURITY' | 'ADMIN';
     rawToken: string;
 }
 
@@ -25,7 +25,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         const initializeAuth = () => {
             const storedToken = localStorage.getItem('token');
-            console.log("[AuthContext] Initializing auth. Token present:", !!storedToken);
 
             if (storedToken) {
                 try {
@@ -34,7 +33,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     const currentTime = Date.now() / 1000;
 
                     if (decoded.exp && decoded.exp < currentTime) {
-                        console.log("[AuthContext] Token expired");
 
                         localStorage.removeItem("token");
                         setUser(null);
@@ -57,7 +55,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 }
             }
             setLoading(false);
-            console.log("[AuthContext] Loading state set to FALSE.");
         };
 
         initializeAuth();
@@ -65,12 +62,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const login = (token: string) => {
         try {
-            console.log("[AuthContext] Handling login with token...", token.substring(0, 10) + '...');
             const decoded = jwtDecode<any>(token);
             localStorage.setItem('token', token);
 
             const role = decoded.role || decoded.authorities?.[0]?.authority || 'STUDENT';
-            console.log("[AuthContext] Login extracted role:", role);
 
             setUser({
                 id: decoded.sub || decoded.id,
@@ -78,14 +73,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 role: role as any,
                 rawToken: token,
             });
-            console.log("[AuthContext] User state updated successfully.");
         } catch (e) {
             console.error('[AuthContext] Login failed to decode token:', e);
         }
     };
 
     const logout = () => {
-        console.log("[AuthContext] Logging out. Clearing token.");
         localStorage.removeItem('token');
         setUser(null);
     };

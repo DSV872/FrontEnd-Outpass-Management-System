@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Typography, Result, Spin, message } from 'antd';
+import { Card, Button, Typography, Result, message } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const ParentApproval: React.FC = () => {
     const [searchParams] = useSearchParams();

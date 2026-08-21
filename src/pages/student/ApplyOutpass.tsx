@@ -36,10 +36,9 @@ const ApplyOutpass: React.FC = () => {
                 expectedInTime: values.expectedInTime.format(
                     "YYYY-MM-DDTHH:mm:ss"
                 ),
-                parentEmail: values.parentEmail,
             };
 
-            await api.post("/student/apply", payload);
+            await api.post("/outpass-service/student/apply", payload);
 
             message.success("Outpass applied successfully");
 
@@ -139,17 +138,6 @@ const ApplyOutpass: React.FC = () => {
                                 </Col>
                             </Row>
 
-                            <Form.Item
-                                name="parentEmail"
-                                label="Parent Email"
-                                rules={[
-                                    { required: true },
-                                    { type: "email" },
-                                ]}
-                            >
-                                <Input placeholder="Enter parent email" />
-                            </Form.Item>
-
                             <Form.Item>
                                 <Button
                                     type="primary"
@@ -165,7 +153,7 @@ const ApplyOutpass: React.FC = () => {
                     </Card>
                 </Col>
             </Row>
-        </div>
+        </div >
     );
 };
 

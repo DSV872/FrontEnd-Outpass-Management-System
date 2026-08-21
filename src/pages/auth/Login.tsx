@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, Typography, message } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, CloseOutlined } from '@ant-design/icons';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { authApi } from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
@@ -11,30 +11,25 @@ const Login: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { login, isAuthenticated, loading: authLoading } = useAuth();
-    
+
     // Redirect if already authenticated
     if (!authLoading && isAuthenticated) {
-        console.log("[Login] Already authenticated, redirecting to root.");
-        return <Navigate to="/" replace />;
+        return <Navigate to="/dashboard" replace />;
     }
 
     const onFinish = async (values: any) => {
         setLoading(true);
         try {
-            console.log("[Login] Sending authentication request...");
-            const response = await authApi.post('/auth/login', values);
-            console.log(response)
+            const response = await authApi.post('/auth-service/auth/login', values);
             const { token } = response.data;
 
-            console.log("[Login] Token received successfully.");
             login(token);
             message.success('Login successful!');
 
             // Navigate to the role redirect handler
-            navigate('/', { replace: true });
+            navigate('/dashboard', { replace: true });
 
         } catch (error: any) {
-            console.error("[Login API Error]", error);
             if (error.response?.status === 401) {
                 message.error('Invalid email or password');
             } else {
@@ -46,13 +41,29 @@ const Login: React.FC = () => {
     };
 
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', width: '100%', padding: '24px' }}>
             <Card
-                style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderRadius: 8 }}
+                bordered={false}
+                style={{
+                    width: '100%',
+                    maxWidth: 440,
+                    boxShadow: '0 30px 60px rgba(0,0,0,0.4)',
+                    borderRadius: 24,
+                    background: 'rgba(255, 255, 255, 0.75)',
+                    backdropFilter: 'blur(24px)',
+                    WebkitBackdropFilter: 'blur(24px)',
+                    border: '1px solid rgba(255, 255, 255, 0.4)'
+                }}
             >
-                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <div
+                    style={{ position: 'absolute', top: 20, right: 20, cursor: 'pointer', zIndex: 10, padding: 4 }}
+                    onClick={() => navigate('/')}
+                >
+                    <CloseOutlined style={{ fontSize: '18px', color: '#8c8c8c' }} />
+                </div>
+                <div style={{ textAlign: 'center', marginBottom: 24, marginTop: 8 }}>
                     <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
-                        Outpass System
+                        GateFlow Campus
                     </Title>
                     <Typography.Text type="secondary">Sign in to your account</Typography.Text>
                 </div>
